@@ -1,0 +1,90 @@
+# ============================================================
+#  .gitleaks.toml —— 第 2 层防护：提交前的秘密扫描规则
+#
+#  ⚠ 重要：gitleaks 使用 RE2 正则引擎，**不支持环视断言**
+#    不支持：(?<!...)  (?<=...)  (?!)  (?=...)
+#    也不支持：\b 反向引用等 PCRE 特性
+#    写错会导致 gitleaks 启动即 panic 退出（exit 2），
+#    结果就是「每次提交都被拦」或「扫描静默失效」。
+#    边界请用 (?:^|[^0-9]) 这类字符类写法代替。
+#
+#  用法：
+#    gitleaks protect --staged --redact -v --config .gitleaks.toml   # 查暂存区
+#    gitleaks detect  --redact -v --config .gitleaks.toml --log-opts=--all   # 查全历史
+# ============================================================
+
+title = "dsh-github-connect 默认规则集"
+
+# 继承 gitleaks 内置规则（各家云厂商 key、私钥、JWT 等）
+[extend]
+useDefault = true
+
+# ------------------------------------------------------------
+#  自定义规则：补上内置规则不覆盖、但国内项目常见的类型
+#  注意：不要加 (?i) 行内标志，gitleaks 会自动为关键词做大小写扩展
+# ------------------------------------------------------------
+[[rules]]
+id = "china-mobile-number"
+description = "中国大陆手机号（个人信息）"
+regex = '''(?:^|[^0-9])(1[3-9][0-9]{9})(?:[^0-9]|$)'''
+secretGroup = 1
+tags = ["pii", "personal"]
+
+[[rules]]
+id = "china-id-card"
+description = "中国大陆身份证号（个人信息）"
+regex = '''(?:^|[^0-9])([1-9][0-9]{5}(?:19|20)[0-9]{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])[0-9]{3}[0-9Xx])(?:[^0-9]|$)'''
+secretGroup = 1
+tags = ["pii", "personal"]
+
+[[rules]]
+id = "private-lan-address"
+description = "内网地址（可能泄露内部网络拓扑）"
+regex = '''(?:^|[^0-9.])((?:10|192\.168|172\.(?:1[6-9]|2[0-9]|3[01]))\.[0-9]{1,3}\.[0-9]{1,3})(?:[^0-9]|$)'''
+secretGroup = 1
+tags = ["internal"]
+
+[[rules]]
+id = "abs-windows-user-path"
+description = "Windows 绝对用户路径（泄露本机用户名）"
+regex = '''[A-Za-z]:\\Users\\(?:Public|Default|All Users|[^\\\s"']+)'''
+tags = ["metadata"]
+
+[[rules]]
+id = "abs-macos-user-path"
+description = "macOS 绝对用户路径（泄露本机用户名）"
+regex = '''/Users/[A-Za-z0-9._-]+/'''
+tags = ["metadata"]
+
+# ------------------------------------------------------------
+#  白名单：示例值、占位符、锁文件、文档不该报错
+#  ⚠ 这些正则同样必须 RE2 兼容
+# ------------------------------------------------------------
+[allowlist]
+description = "全局白名单"
+paths = [
+  '''\.example$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)yarn\.lock$''',
+  '''(^|/)poetry\.lock$''',
+  '''(^|/)Cargo\.lock$''',
+  '''(^|/)go\.sum$''',
+  '''\.md$''',
+  '''(^|/)tests?/fixtures?/''',
+  '''(^|/)\.gitleaks\.toml$''',
+]
+regexes = [
+  '''REPLACE_ME''',
+  '''CHANGE_ME''',
+  '''YOUR_[A-Z_]+_HERE''',
+  '''\{\{[^}]+\}\}''',
+  '''example\.com''',
+  '''(^|[^a-z])localhost([^a-z]|$)''',
+  '''127\.0\.0\.1''',
+  '''0\.0\.0\.0''',
+  '''192\.0\.2\.''',
+  '''198\.51\.100\.''',
+  '''203\.0\.113\.''',
+  '''(dummy|fake|sample|test)[-_]?(key|token|secret|password)''',
+]

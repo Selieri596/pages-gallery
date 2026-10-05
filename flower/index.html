@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='%23ff8f70'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ffd76b'/%3E%3C/svg%3E"/>
+<title>花 · FLOWER — 随风而行</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0a1018;font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none}
+  #app{position:fixed;inset:0}
+  #app canvas{display:block}
+
+  .letterbox{position:fixed;left:0;right:0;height:4.6vh;background:#05070c;z-index:6;pointer-events:none;
+    transition:transform 1.6s cubic-bezier(.4,0,.2,1)}
+  #lb-top{top:0;transform:translateY(-102%)}
+  #lb-bottom{bottom:0;transform:translateY(102%)}
+  body.cine #lb-top{transform:translateY(0)}
+  body.cine #lb-bottom{transform:translateY(0)}
+
+  #veil{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 40%, rgba(14,26,44,.30) 0%, rgba(6,10,20,.82) 100%);
+    backdrop-filter:blur(4px);cursor:pointer;transition:opacity 1.6s ease}
+  #veil.hide{opacity:0;pointer-events:none}
+  #veil h1{color:#fdf6e8;font-weight:600;font-size:clamp(46px,10vw,112px);letter-spacing:.30em;margin:0 0 4px .30em;
+    text-shadow:0 8px 60px rgba(140,205,255,.30), 0 2px 18px rgba(0,0,0,.4);
+    animation:veilIn 2.2s ease both}
+  #veil .en{color:rgba(255,247,229,.85);letter-spacing:.62em;margin-left:.62em;font-size:clamp(12px,1.8vw,19px);
+    animation:veilIn 2.2s .35s ease both}
+  #veil .tag{color:rgba(220,236,244,.72);margin-top:26px;font-size:clamp(12px,1.6vw,16px);letter-spacing:.24em;margin-left:.24em;
+    animation:veilIn 2.2s .7s ease both}
+  #veil .btn{margin-top:44px;padding:14px 46px;border:1px solid rgba(255,244,220,.55);border-radius:999px;
+    color:#fdf6e8;font-size:clamp(14px,1.8vw,18px);letter-spacing:.35em;margin-left:.35em;background:rgba(255,255,255,.06);
+    transition:all .5s ease;animation:veilIn 2.2s 1.0s ease both}
+  #veil .btn:hover{background:rgba(255,244,220,.22);box-shadow:0 0 42px rgba(255,230,180,.28);transform:scale(1.04)}
+  #veil .tip{margin-top:34px;color:rgba(200,216,226,.45);font-size:12px;letter-spacing:.12em;animation:veilIn 2.2s 1.3s ease both}
+  #veil .err{margin-top:30px;color:#ffb0a6;font-size:13px;display:none}
+  @keyframes veilIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .hud{position:fixed;z-index:8;display:flex;gap:10px}
+  #hud-tl{top:16px;left:20px;flex-direction:column;pointer-events:none}
+  #hud-tl .name{color:rgba(255,250,238,.85);font-size:15px;letter-spacing:.42em}
+  #hud-tl .weather{color:rgba(255,250,238,.5);font-size:11px;letter-spacing:.2em;margin-top:5px;font-variant-numeric:tabular-nums}
+  #hud-br{bottom:18px;right:20px}
+  .chip{border:1px solid rgba(255,255,255,.22);background:rgba(10,16,26,.42);color:rgba(255,250,238,.85);
+    border-radius:999px;padding:7px 15px;font-size:12px;letter-spacing:.1em;cursor:pointer;
+    backdrop-filter:blur(6px);transition:all .3s ease}
+  .chip:hover{background:rgba(255,246,225,.18)}
+  #hint{position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);z-index:8;color:rgba(255,250,238,.62);
+    font-size:12.5px;letter-spacing:.2em;text-align:center;pointer-events:none;transition:opacity 1.6s ease;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="letterbox" id="lb-top"></div>
+<div class="letterbox" id="lb-bottom"></div>
+
+<div class="hud" id="hud-tl">
+  <div class="name">花 · FLOWER</div>
+  <div class="weather" id="wx">晴 · 微风</div>
+</div>
+<div class="hud" id="hud-br">
+  <div class="chip" id="btn-quality">画质 · 高</div>
+  <div class="chip" id="btn-cine">电影框 · 开</div>
+  <div class="chip" id="btn-mute">音乐 · 开</div>
+</div>
+<div id="hint">移动鼠标（或拖动屏幕）指引花瓣的方向 · 点击使花瓣加速 · 停下时镜头会缓缓拉近</div>
+
+<div id="veil">
+  <h1>花</h1>
+  <div class="en">F L O W E R</div>
+  <div class="tag">一场关于微风、云影与生长的旅程</div>
+  <div class="btn">进 入 花 田</div>
+  <div class="tip">建议使用最新版 Chrome / Edge，全屏体验更佳</div>
+  <div class="err" id="err"></div>
+</div>
+
+<script src="libs/three.min.js"></script>
+<script>
+  // three.js 加载链：本地 → jsdelivr → unpkg
+  (function loadThree(i) {
+    if (window.THREE) { window.__threeReady && window.__threeReady(); return; }
+    var srcs = ['https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js',
+                'https://unpkg.com/three@0.149.0/build/three.min.js'];
+    if (i >= srcs.length) {
+      var e = document.getElementById('err');
+      e.style.display = 'block';
+      e.textContent = '无法加载 three.js（请检查网络后刷新重试）';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = srcs[i];
+    s.onload = function () { window.__threeReady && window.__threeReady(); };
+    s.onerror = function () { loadThree(i + 1); };
+    document.head.appendChild(s);
+  })(0);
+</script>
+<script src="game.js"></script>
+</body>
+</html>

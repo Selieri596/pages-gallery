@@ -47,7 +47,9 @@ tags = ["internal"]
 [[rules]]
 id = "abs-windows-user-path"
 description = "Windows 绝对用户路径（泄露本机用户名）"
-regex = '''[A-Za-z]:\\Users\\(?:Public|Default|All Users|[^\\\s"']+)'''
+# 同时匹配反斜杠与正斜杠两种写法：C:\Users\x 和 C:/Users/x 都很常见，
+# 只写一种会漏（实测就漏掉过 C:/Users/Aurora/... 的写法）。
+regex = '''[A-Za-z]:[\\/]Users[\\/](?:Public|Default|All Users|[^\\/\s"']+)'''
 tags = ["metadata"]
 
 [[rules]]
